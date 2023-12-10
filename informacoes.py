@@ -2,54 +2,54 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
+
 def extrair_dados_paranagua():
-    url_paranagua = "https://www.appaweb.appa.pr.gov.br/appaweb/pesquisa.aspx?WCI=relLineUpRetroativo"
-    # Realiza a requisição
-    response = requests.get(url_paranagua)
-    if response.status_code == 200:
-        # Faz o parsing do HTML
-        soup = BeautifulSoup(response.content, "html.parser")
-        # Encontra todas as tabelas
-        tabelas_previstas = []
+    # URL da página a ser acessada
+    url = 'https://www.appaweb.appa.pr.gov.br/appaweb/pesquisa.aspx?WCI=relLineUpRetroativo'
 
-        tabelas = soup.find_all('table')
-        for table in tabelas:
-            headers = table.find_all('th')
-            header_names = [header.get_text().strip().lower() for header in headers]
+    # Realizando a requisição para obter o conteúdo da página
+    response = requests.get(url)
 
-            # Verifica se a tabela possui colunas com 'previsto'
-            if 'previsto' in header_names:
-                tabelas_previstas.append(table)
+    # Analisando o conteúdo HTML da página
+    soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Criar um DataFrame vazio para consolidar os dados
-        df_consolidado = pd.DataFrame(columns=['Produto', 'Previsto', 'Sentido', 'Porto'])
+    # Localizando as tabelas
+    tabelas = soup.find_all('table')
+    todas_tabelas = []
+    
+    for tabela in tabelas:
+        headers = tabela.find_all('th')
+        header_names = [header.get_text().strip().lower()
+                        for header in headers]
+        # Verifica se a tabela possui colunas com 'previsto'
+        if 'previsto' in header_names:
+            todas_tabelas.append(tabela)
 
-        # Para cada tabela com 'previsto', extrair dados e adicionar ao DataFrame consolidado
-        for table in tabelas_previstas:
-            linhas = table.find_all('tr')
-            for linha in linhas[1:]:  # Começa a partir da segunda linha para evitar o cabeçalho
-                colunas = linha.find_all(['td', 'th'])
-                dados_linha = [coluna.get_text().strip() for coluna in colunas]
+    # Listas para armazenar os dados das colunas desejadas
+    coluna9 = []
+    coluna12 = []
+    coluna17 = []
 
-                # Se houver 4 colunas (produto, previsto, sentido e outra), adicione ao DataFrame consolidado
-                if len(dados_linha) == 4:
-                    df_consolidado = df_consolidado.append({
-                        'Produto': dados_linha[0],
-                        'Previsto': dados_linha[1],
-                        'Sentido': dados_linha[2],
-                        'Porto': 'Paranaguá'
-                    }, ignore_index=True)
+    # Iterando pelas tabelas encontradas
+    for tabela in todas_tabelas:
+        # Iterando pelas linhas da tabela
+        for linha in tabela.find_all('tr'):
+            # Obtendo todas as células da linha
+            cells = linha.find_all('td')
 
-        return df_consolidado
+            # Verificado se a linha tem pelo menos 18 células/colunas.
+            if len(cells) >= 18:
+                # Adicionando os dados das colunas específicas às listas
+                coluna9.append(cells[9].get_text().strip())
+                coluna12.append(cells[12].get_text().strip())
+                coluna17.append(cells[17].get_text().strip())
 
-    else:
-        print('A requisição falhou')
-
-# Chamada da função para extrair os dados
-df_final = extrair_dados_paranagua()
-
-# Mostra o DataFrame consolidado
-print(df_final)
+    # Criando um dicionário com as colunas desejadas
+    dados_desejados = {'sentido': coluna9, 'mercadoria': coluna12, 'previsto': coluna17}
+    # Convertendo o dicionário em um DataFrame do Pandas
+    tabela_final = pd.DataFrame(dados_desejados)
+    tabela_final['Local'] = 'paranagua'
+    return tabela_final
 
 
 # Função para extrair dados de Santos
@@ -64,17 +64,15 @@ def extrair_dados_santos():
     dados_santos_post = soup.find_all()
     print(dados_santos_post)
 
-
     return dados_santos
 
 # Função para combinar e organizar os dados
 def organizar_dados(dados_paranagua, dados_santos):
     return 0
 
+
 # Chama as funções para extrair e organizar os dados
 dados_paranagua = extrair_dados_paranagua()
-# dados_santos = extrair_dados_santos()
-# dados_combinados = organizar_dados(dados_paranagua, dados_santos)
+nome_arquivo = 'tabela_paranagua.xlsx'
+dados_paranagua.to_excel(nome_arquivo, index=False)
 
-# Salva os dados em um arquivo CSV
-# dados_combinados.to_csv('dados_volume_diario_previsto.csv', index=False)
